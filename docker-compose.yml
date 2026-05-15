@@ -1,0 +1,189 @@
+version: '3.9'
+
+services:
+  # Databases
+  postgres:
+    image: postgres:15-alpine
+    container_name: persona-postgres
+    environment:
+      POSTGRES_USER: persona
+      POSTGRES_PASSWORD: persona_dev_password
+      POSTGRES_DB: persona_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U persona"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: persona-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mongodb:
+    image: mongo:6-alpine
+    container_name: persona-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: persona
+      MONGO_INITDB_ROOT_PASSWORD: persona_dev_password
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.5.0
+    container_name: persona-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Services
+  user-service:
+    build:
+      context: ./backend/services/user-service-python
+      dockerfile: Dockerfile
+    container_name: persona-user-service
+    ports:
+      - "8001:8000"
+    environment:
+      DATABASE_URL: postgresql://persona:persona_dev_password@postgres:5432/persona_dev
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  content-service:
+    build:
+      context: ./backend/services/content-service-go
+      dockerfile: Dockerfile
+    container_name: persona-content-service
+    ports:
+      - "8002:8080"
+    environment:
+      DATABASE_URL: postgresql://persona:persona_dev_password@postgres:5432/persona_dev
+      SERVICE_PORT: 8080
+    depends_on:
+      postgres:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  media-service:
+    build:
+      context: ./backend/services/media-service-nodejs
+      dockerfile: Dockerfile
+    container_name: persona-media-service
+    ports:
+      - "8003:3000"
+    environment:
+      DATABASE_URL: postgresql://persona:persona_dev_password@postgres:5432/persona_dev
+      UPLOAD_DIR: /uploads
+      NODE_ENV: development
+    volumes:
+      - ./uploads:/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  analytics-service:
+    build:
+      context: ./backend/services/analytics-service-java
+      dockerfile: Dockerfile
+    container_name: persona-analytics-service
+    ports:
+      - "8004:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/persona_dev
+      SPRING_DATASOURCE_USERNAME: persona
+      SPRING_DATASOURCE_PASSWORD: persona_dev_password
+    depends_on:
+      postgres:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  simulation-service:
+    build:
+      context: ./backend/services/simulation-service-rust
+      dockerfile: Dockerfile
+    container_name: persona-simulation-service
+    ports:
+      - "8005:8080"
+    environment:
+      DATABASE_URL: postgresql://persona:persona_dev_password@postgres:5432/persona_dev
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  mongodb_data:
+    driver: local
+  elasticsearch_data:
+    driver: local
+
+networks:
+  default:
+    name: persona-network
+    driver: bridge
