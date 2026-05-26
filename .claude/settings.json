@@ -5,7 +5,12 @@
       "Read(//Users/ramyachowdary/Documents/prem-work/**)",
       "Bash(find /Users/ramyachowdary -name \"*karpathy*\" -o -name \"*karpatys*\" 2>/dev/null)",
       "Read(//Users/ramyachowdary/**)",
-      "Bash(xargs dirname)"
+      "Bash(xargs dirname)",
+      "Bash(git rm *)",
+      "Bash(rm .gitmodules && git commit -m \"Remove ai-ml submodules, focus on persona frontend\")"
+    ],
+    "additionalDirectories": [
+      "/Users/ramyachowdary/Documents/prem-work/persona"
     ]
   }
 }
