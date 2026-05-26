@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /Users/ramyachowdary/Documents/prem-work -name \"*.ipynb\" -type f 2>/dev/null | head -20)",
+      "Read(//Users/ramyachowdary/Documents/prem-work/**)",
+      "Bash(find /Users/ramyachowdary -name \"*karpathy*\" -o -name \"*karpatys*\" 2>/dev/null)",
+      "Read(//Users/ramyachowdary/**)",
+      "Bash(xargs dirname)"
+    ]
+  }
+}
