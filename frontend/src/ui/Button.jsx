@@ -1,6 +1,15 @@
 /**
- * Button — Generic button component with variants
- * Presentational, stateless, accessible
+ * Button — Clickable button with visual variants
+ * WHAT:  Renders a <button> with primary/secondary/ghost styles and
+ *        sm/md/lg sizes. Supports disabled, fullWidth, onClick, type.
+ * HOW:   Variants and sizes are defined as inline style maps merged in
+ *        order: variant → size → overrides → style prop. Disabled state
+ *        reduces opacity and switches cursor to not-allowed. The native
+ *        <button> element ensures keyboard accessibility (Enter/Space).
+ * WHY:   Encapsulates repetitive button styling (border-radius, transition,
+ *        font-weight) so callers pass only semantic props (variant, size)
+ *        rather than ad-hoc style objects. The `...rest` spread lets
+ *        consumers pass aria-* or data-* attributes directly.
  */
 export default function Button({
   children,

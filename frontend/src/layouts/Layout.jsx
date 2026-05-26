@@ -1,6 +1,16 @@
 /**
- * Layout — Main page layout wrapper with header, footer, sidebar
- * Presentational, stateless, flexible grid layout
+ * Layout — Full-page shell with header, optional sidebar, main, footer
+ * WHAT:  Renders a vertical flex container (min-height:100vh) with header
+ *        at top, footer pinned to bottom, and a main content area that
+ *        optionally includes a sidebar.
+ * HOW:   The outer container uses flex-direction:column; the middle section
+ *        is a flex row where sidebar (if enabled) sits left with a fixed
+ *        width and main fills the rest (flex:1). marginTop:auto on Footer
+ *        pushes it down when content is short.
+ * WHY:   Eliminates repetitive 100vh/flex layout boilerplate. The sidebar
+ *        toggle (hasSidebar) and width (sidebarWidth) are props, so the
+ *        same Layout component works for dashboard (with sidebar) and
+ *        landing-page (no sidebar) use cases.
  */
 export default function Layout({
   header,

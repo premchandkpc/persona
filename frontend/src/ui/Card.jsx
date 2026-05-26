@@ -1,6 +1,14 @@
 /**
- * Card — Container for grouped content
- * Presentational, stateless, reusable box with elevated styling
+ * Card — Elevated content container with optional header
+ * WHAT:  Renders a bordered, shadowed box with an optional title/subtitle
+ *        header and arbitrary children.
+ * HOW:   When `title` is provided, renders an <h3> heading with a subtitle
+ *        <p> above the children. Accepts `bg`, `border`, `shadow`, `radius`
+ *        to customize appearance. All remaining props spread to the root <div>.
+ * WHY:   Provides a consistent "card" visual pattern (used for feature cards,
+ *        settings panels, data displays) without duplicating the border+shadow+
+ *        padding boilerplate. The optional header distinguishes cards from
+ *        plain Box containers.
  */
 export default function Card({
   children,

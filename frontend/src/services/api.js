@@ -1,7 +1,16 @@
 /**
- * API Service — HTTP client wrapper
- * Handles requests, response parsing, error handling
- * Stateless utility for data fetching
+ * api.js — HTTP client wrapper
+ * WHAT:  Stateless utility wrapping fetch() with JSON handling, error
+ *        normalization, and convenience methods (get/post/put/delete).
+ * HOW:   apiCall() merges caller options over DEFAULT_OPTIONS (JSON
+ *        Content-Type), calls fetch(), checks response.ok, and parses
+ *        JSON. Non-2xx responses throw with status + statusText. Each
+ *        api method (get, post, put, delete) calls apiCall with the
+ *        appropriate HTTP method, serializing body data for mutations.
+ * WHY:   Isolates fetch boilerplate (headers, error parsing, JSON
+ *        serialization) from business logic. Callers write
+ *        api.get("/users") instead of repeating fetch/try-catch/JSON.parse
+ *        in every component.
  */
 
 const DEFAULT_OPTIONS = {

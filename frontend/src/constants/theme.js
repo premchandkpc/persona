@@ -1,6 +1,16 @@
 /**
- * Theme Constants — Design system values
- * Colors, spacing, typography, transitions
+ * theme.js — Design system constants
+ * WHAT:  Named maps for colors, spacing, font sizes, font weights,
+ *        transitions, and breakpoints.
+ * HOW:   Each map is a plain JS object. Colors reference CSS custom
+ *        properties (var(--accent)) for semantic values so they can
+ *        be themed at the CSS layer, while status colors (success,
+ *        warning, error, info) are hardcoded hex values.
+ * WHY:   Centralizes design tokens. Components import spacing.md or
+ *        colors.primary instead of hardcoding "1rem" or "#3b82f6",
+ *        making systematic design changes a single edit. Consumers
+ *        can also use these to compose inline styles (e.g. adding
+ *        gap: spacing.lg to non-Box elements).
  */
 
 export const colors = {

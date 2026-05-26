@@ -1,7 +1,15 @@
 /**
- * HomePage Example — Demonstrates how to use the React service
- * Shows: Layout, Header, Footer, cards, buttons, text components
- * Learning: Component composition, prop patterns, styling
+ * HomePage — Full-page demo showcasing all UI components in context
+ * WHAT:  Renders a complete page using Layout, Header, Footer, Box, Card,
+ *        Button, Heading, and Text to demonstrate component composition.
+ * HOW:   Assembles a hero section, features grid (rendered from array data),
+ *        component showcase (buttons, text sizes, headings), and a CTA
+ *        section — all within a Layout shell. Uses inline onMouseEnter/
+ *        onMouseLeave for card hover effects.
+ * WHY:   Serves as both a visual reference and a starting template. New
+ *        pages can copy this file and replace the sections with real content.
+ *        The pattern shows how stateless UI components compose to build
+ *        production-style layouts without any global state library.
  */
 import {
   Layout,

@@ -1,6 +1,15 @@
 /**
- * Heading — Semantic heading component with size variants (h1-h6)
- * Presentational, stateless, accessible
+ * Heading — Semantic heading (h1-h6) with predefined sizing
+ * WHAT:  Renders the correct HTML heading element (h1-h6) based on the
+ *        `level` prop, with size, weight, color, and alignment control.
+ * HOW:   Uses a lookup table (levelSizes) mapping heading level to
+ *        fontSize+lineHeight. The `size` prop overrides the level default
+ *        when provided. Renders via dynamic element `Element = h${level}`
+ *        to preserve semantic hierarchy.
+ * WHY:   Ensures proper document outline / accessibility while giving
+ *        designers visual control. A level-2 heading can visually appear
+ *        smaller than a level-3 via explicit `size` overrides without
+ *        breaking screen reader semantics.
  */
 export default function Heading({
   children,

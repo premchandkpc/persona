@@ -1,6 +1,18 @@
 /**
- * Formatter Service — Data formatting utilities
- * Stateless utilities for text, date, number formatting
+ * formatter.js — Data formatting utilities
+ * WHAT:  Stateless utility object for formatting dates, numbers, currency,
+ *        byte sizes, and strings (truncate, capitalize, kebab, slug).
+ * HOW:   Each method is a pure function:
+ *        - date() delegates to toLocaleDateString/toLocaleTimeString with
+ *          preset format strings ("short", "long", "time").
+ *        - currency() uses Intl.NumberFormat for locale-aware output.
+ *        - bytes() computes the nearest unit (KB/MB/GB) via log division.
+ *        - truncate() slices at length and appends "...".
+ *        - kebab() uses a regex that inserts hyphens at camelCase boundaries.
+ *        - slug() lowercases, strips special chars, replaces whitespace.
+ * WHY:   Centralizes formatting logic so components render consistently
+ *        without duplicating Intl.NumberFormat or truncation logic. All
+ *        methods are pure and side-effect-free, making them easy to test.
  */
 
 export const formatter = {

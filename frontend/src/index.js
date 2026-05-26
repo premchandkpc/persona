@@ -1,6 +1,12 @@
 /**
- * Persona Frontend Components Library
- * Generic React service with components, services, hooks, utilities
+ * index.js — Barrel export (public API surface)
+ * WHAT:  Single entry point that re-exports every public module.
+ * HOW:   Consumers import only from this file; tree-shaking drops unused
+ *        exports at build time via Vite/Rollup.
+ * WHY:   Decouples consumer code from internal file layout. Adding a new
+ *        component only requires one new line here instead of updating
+ *        every import site. Follows the "barrel file" pattern common in
+ *        library-style React projects.
  */
 
 // UI Components

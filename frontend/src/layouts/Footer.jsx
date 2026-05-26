@@ -1,6 +1,16 @@
 /**
- * Footer — Bottom navigation/information component
- * Presentational, stateless layout element
+ * Footer — Page bottom section with link columns and copyright
+ * WHAT:  Renders a <footer> with multi-column link sections, a copyright
+ *        line, and a social links area.
+ * HOW:   `sections` is an array of { title, links: [{ label, href }] }
+ *        rendered as a CSS grid. Link hover swaps color via onMouseEnter/
+ *        onMouseLeave inline handlers (no CSS file needed). The copyright
+ *        and social areas sit in a flex row separated by a top border.
+ *        marginTop:auto pushes the footer to the bottom when the page
+ *        content is shorter than the viewport.
+ * WHY:   Encapsulates the common footer layout pattern (link columns +
+ *        legal + social) so pages avoid repeating the grid/border/link
+ *        styling. Stateless — all content is data-driven via props.
  */
 export default function Footer({
   sections,

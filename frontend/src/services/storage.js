@@ -1,6 +1,15 @@
 /**
- * Storage Service — localStorage wrapper
- * Stateless utility for persistence
+ * storage.js — localStorage wrapper
+ * WHAT:  Stateless utility wrapping localStorage with JSON serialization,
+ *        error handling, and fallback defaults.
+ * HOW:   All operations are wrapped in try-catch (localStorage can throw
+ *        in private browsing or when quota is exceeded). `set` serializes
+ *        via JSON.stringify, `get` parses via JSON.parse with a fallback
+ *        defaultValue when the key is absent or parsing fails.
+ * WHY:   Abstracts JSON serialization and error recovery so callers write
+ *        storage.set("key", value) instead of try-catching localStorage
+ *        calls everywhere. The defaultValue parameter eliminates null-check
+ *        boilerplate at call sites.
  */
 
 export const storage = {

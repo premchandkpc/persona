@@ -1,5 +1,14 @@
 # Quick Start — Persona Frontend React Service
 
+**Setup:**
+```bash
+make install     # or: npm install
+make dev         # or: npm run dev     → http://localhost:5173
+make build       # or: npm run build   → dist/
+make preview     # or: npm run preview  → preview production build
+make clean       # remove dist/ and node_modules/
+```
+
 **Import:**
 ```jsx
 import { Box, Button, Card, Layout, Header, Footer, useLocalStorage, api, formatter, spacing, colors } from './index.js';

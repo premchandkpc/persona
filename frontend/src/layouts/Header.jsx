@@ -1,6 +1,16 @@
 /**
- * Header — Top navigation/branding component
- * Presentational, stateless layout element
+ * Header — Top navigation bar with logo, nav, and actions
+ * WHAT:  Renders a <header> with a logo+title area, center navigation,
+ *        and right-aligned action buttons.
+ * HOW:   Uses flexbox with space-between to position three sections:
+ *        (1) logo + title + subtitle, (2) nav slot, (3) actions slot.
+ *        When `sticky` is true, applies position:sticky; top:0; z-index:100
+ *        so the header stays visible on scroll.
+ * WHY:   Provides a drop-in header pattern so pages don't re-implement
+ *        the same logo/title/nav layout. The nav and actions are render
+ *        props (React nodes), letting callers inject any elements (links,
+ *        buttons, search bars) without coupling to a specific navigation
+ *        data structure.
  */
 export default function Header({
   logo,

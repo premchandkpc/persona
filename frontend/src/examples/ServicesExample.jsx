@@ -1,9 +1,16 @@
 /**
- * Services & Hooks Example — How to use business logic utilities
- * Shows: API calls, localStorage, formatting, custom hooks
- * Learning: Service pattern, hook rules, data flow
+ * ServicesExample — Demo of all services (api, storage, formatter) and hooks
+ * WHAT:  Renders individual example components showing useLocalStorage,
+ *        useFetch, api service, storage service, and formatter service.
+ * HOW:   Each inner component (LocalStorageExample, FetchExample, etc.) is
+ *        self-contained with its own state, demonstrating a single service
+ *        or hook in isolation. They are composed into a grid by the default
+ *        export ServicesExample.
+ * WHY:   Provides working, runnable reference code for every service/hook.
+ *        Developers can open this file alongside the docs to see real
+ *        imports, API shapes, and error handling patterns.
  */
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Card,
   Button,

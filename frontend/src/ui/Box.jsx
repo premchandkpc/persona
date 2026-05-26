@@ -1,6 +1,13 @@
 /**
- * Box — Generic container component for spacing/layout
- * Presentational, stateless, zero-logic wrapper
+ * Box — Generic container for layout and spacing
+ * WHAT:  Renders a flex or block container with configurable direction,
+ *        alignment, gap, padding, margin, width, height, background, border.
+ * HOW:   Switches between display:flex (when any layout prop is set) and
+ *        display:block (bare wrapper). Accepts `as` prop to render a
+ *        different HTML element (nav, section, article, etc.).
+ * WHY:   Avoids repetitive wrapper divs + inline style duplication. Acts
+ *        as the single layout primitive that all other components compose
+ *        on top of.
  */
 export default function Box({
   children,
