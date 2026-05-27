@@ -1,463 +1,126 @@
-# Database Schemas
+# Database Schemas — Interview Prep & Tricky Points
 
-Comprehensive schema definitions for all services in the Persona platform.
-
-## Databases Overview
-
-| Database | Purpose | Type |
-| --- | --- | --- |
-| **PostgreSQL** | Relational data (users, posts, comments, analytics) | Relational |
-| **MongoDB** | Document storage (user content, media metadata, logs) | Document |
-| **Redis** | Caching, sessions, real-time data | In-Memory Cache |
-| **Elasticsearch** | Full-text search, analytics, logging | Search Engine |
+Comprehensive schema definitions for all Persona platform databases. Each database is selected for its strength: **PostgreSQL** for relational integrity, **MongoDB** for flexibile documents, **Redis** for speed, **Elasticsearch** for search.
 
 ---
 
-## PostgreSQL Schemas
+## Database Selection — Interview Questions
 
-### users table
-```sql
-CREATE TABLE users (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  email VARCHAR(255) UNIQUE NOT NULL,
-  username VARCHAR(255) UNIQUE NOT NULL,
-  password_hash VARCHAR(255) NOT NULL,
-  first_name VARCHAR(100),
-  last_name VARCHAR(100),
-  profile_picture_url TEXT,
-  bio TEXT,
-  is_active BOOLEAN DEFAULT TRUE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  deleted_at TIMESTAMP
-);
+**Q: Why PostgreSQL over MySQL?**
+A: Stronger ACID compliance, better JSON support (JSONB with indexing), richer indexing (GIN, GiST, BRIN), CTEs and window functions, extensions (PostGIS for geospatial, `pgvector` for embeddings), and more standards-compliant.
 
-CREATE INDEX idx_users_email ON users(email);
-CREATE INDEX idx_users_username ON users(username);
-CREATE INDEX idx_users_is_active ON users(is_active);
-```
+**Q: Why both PostgreSQL and MongoDB?**
+A: PostgreSQL handles structured relational data (users, posts, likes) where referential integrity matters. MongoDB handles flexible documents (user content with varying fields, nested media arrays) where schema evolution is frequent. Polyglot persistence — use the right tool.
 
-**Relationships:**
-- One user → Many posts
-- One user → Many comments
-- One user → Many followers
+**Q: Why Redis when PostgreSQL can cache?**
+A: Redis is an in-memory data structure store, not just a cache. It supports sorted sets (leaderboards), lists (feed queues), sets (unique likes), pub/sub (real-time), and TTL-based expiry. Sub-millisecond latency vs PostgreSQL's 1-10ms. Use Redis for hot-path data that changes frequently.
+
+**Q: Why Elasticsearch instead of PostgreSQL full-text search?**
+A: Elasticsearch is purpose-built for search: inverted indexes, tokenization analyzers, fuzzy matching, relevance scoring (BM25), faceted search, and near-real-time indexing. PostgreSQL's `tsvector` works for basic search but doesn't scale to complex queries or large text corpora.
 
 ---
 
-### posts table
-```sql
-CREATE TABLE posts (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  title VARCHAR(500) NOT NULL,
-  content TEXT NOT NULL,
-  summary VARCHAR(255),
-  status VARCHAR(50) DEFAULT 'published',
-  view_count INTEGER DEFAULT 0,
-  like_count INTEGER DEFAULT 0,
-  is_featured BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  published_at TIMESTAMP,
-  deleted_at TIMESTAMP
-);
+## PostgreSQL — Interview Questions
 
-CREATE INDEX idx_posts_user_id ON posts(user_id);
-CREATE INDEX idx_posts_status ON posts(status);
-CREATE INDEX idx_posts_published_at ON posts(published_at DESC);
-CREATE INDEX idx_posts_is_featured ON posts(is_featured);
-```
+**Q: Why use UUID primary keys instead of auto-increment integers?**
+A: UUIDs are globally unique across services, databases, and distributed systems. They prevent ID collision in microservices, are safe to expose in URLs, and enable offline ID generation. Downside: 16 bytes vs 4 bytes, and random UUIDs cause index fragmentation (use UUID v7 for time-ordered).
 
-**Relationships:**
-- Many posts → One user
-- One post → Many comments
-- One post → Many likes
+**Q: Why `ON DELETE CASCADE` vs `SET NULL`?**
+A: CASCADE: deleting a user deletes all their posts/comments/likes. Good for GDPR/user deletion. SET NULL: deleting a post sets `post_id` to NULL in comments — retains comments with "deleted" context. The choice depends on data retention policy.
+
+**Q: Explain the `likes` table constraint design.**
+A: The CHECK constraint ensures a like targets exactly one entity (post OR comment, not both). The UNIQUE constraint prevents duplicate likes. This is a clean polymorphic association pattern. Alternative: separate `post_likes` and `comment_likes` tables.
+
+**Q: Why use `gen_random_uuid()` over `uuid_generate_v4()`?**
+A: `gen_random_uuid()` is built into PostgreSQL 13+ (no extension needed). `uuid_generate_v4()` requires the `pgcrypto` extension. Both generate random UUIDs.
+
+### Tricky Points
+
+| Pitfall | Explanation |
+|---------|-------------|
+| **Soft deletes (`deleted_at`)** | Queries must filter `WHERE deleted_at IS NULL` everywhere. Easy to forget. Use views or row-level security. |
+| **Index overuse** | Too many indexes slow writes. Each index adds O(log n) per INSERT/UPDATE. |
+| **Missing composite indexes** | Querying `WHERE user_id = ? AND status = ?` needs a composite index on `(user_id, status)`. Separate indexes don't help. |
+| **Dead tuples** | PostgreSQL uses MVCC — UPDATE creates a new row version. `VACUUM` reclaims space. Auto-vacuum must be tuned. |
+| **Connection pool exhaustion** | Each service creates a pool. Too many connections → `FATAL: too many connections`. Set `max_connections` per service. |
+| **JSONB vs relational** | Querying inside JSONB (`data->>'field'`) can't use standard B-tree indexes. Use GIN indexes for JSONB. |
 
 ---
 
-### comments table
-```sql
-CREATE TABLE comments (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  post_id UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  parent_comment_id UUID REFERENCES comments(id) ON DELETE CASCADE,
-  content TEXT NOT NULL,
-  like_count INTEGER DEFAULT 0,
-  is_edited BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  deleted_at TIMESTAMP
-);
+## MongoDB — Interview Questions
 
-CREATE INDEX idx_comments_post_id ON comments(post_id);
-CREATE INDEX idx_comments_user_id ON comments(user_id);
-CREATE INDEX idx_comments_parent_comment_id ON comments(parent_comment_id);
-```
+**Q: Why TTL indexes for sessions?**
+A: `expireAfterSeconds: 0` tells MongoDB to automatically delete documents when `expires_at` is reached. This eliminates the need for a cleanup cron job. MongoDB checks every 60 seconds.
 
-**Relationships:**
-- Many comments → One post
-- Many comments → One user
-- Self-referencing for nested comments
+**Q: Why store user content in MongoDB instead of PostgreSQL?**
+A: User content has varied fields (raw_content, media_files array, nested metadata). A relational model would need multiple tables with JOINs. MongoDB stores it as a single document with embedded arrays — faster reads, simpler code.
+
+**Q: Why indexes on `user_id + created_at`?**
+A: The most common query is "get user X's content, sorted by date." A compound index on `(user_id, created_at)` covers both the filter and sort in one index scan. Without it, MongoDB sorts in memory (32MB limit).
+
+### Tricky Points
+
+| Pitfall | Explanation |
+|---------|-------------|
+| **No joins** | MongoDB is not relational. Embedding vs referencing is a critical design decision. Embed for one-to-few; reference for one-to-many/many-to-many. |
+| **Document size limit** | 16MB per document. A user with 10,000 embedded comments would exceed this. Paginate with references instead. |
+| **Write concern** | Default `w: 1` (ack from primary). For durability, use `w: majority`. For speed, `w: 0` (fire and forget). |
+| **Read preference** | Secondary reads can return stale data. Use `readPreference: primaryPreferred` for read-your-writes consistency. |
+| **No schema validation by default** | MongoDB accepts any fields. Use schema validation (JSON Schema in MongoDB 5+) or validate in application code. |
 
 ---
 
-### likes table
-```sql
-CREATE TABLE likes (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  post_id UUID REFERENCES posts(id) ON DELETE CASCADE,
-  comment_id UUID REFERENCES comments(id) ON DELETE CASCADE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT like_unique UNIQUE(user_id, post_id, comment_id),
-  CHECK ((post_id IS NOT NULL AND comment_id IS NULL) OR (post_id IS NULL AND comment_id IS NOT NULL))
-);
+## Redis — Interview Questions
 
-CREATE INDEX idx_likes_user_id ON likes(user_id);
-CREATE INDEX idx_likes_post_id ON likes(post_id);
-CREATE INDEX idx_likes_comment_id ON likes(comment_id);
-```
+**Q: Why does every key have a TTL?**
+A: Redis is memory-bound. TTLs prevent stale data accumulation and automatically evict old data. Without TTLs, the cache grows until `maxmemory` is hit, then eviction policy kicks in (LRU by default).
 
----
+**Q: Why sorted sets for trending posts?**
+A: Sorted sets store unique members with a score. `ZINCRBY trending:posts 1 post_id` increments the score atomically. `ZREVRANGE trending:posts 0 9` returns the top 10. This is O(log N + M) — extremely efficient for leaderboards and trending lists.
 
-### followers table
-```sql
-CREATE TABLE followers (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  follower_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  following_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT follower_unique UNIQUE(follower_id, following_id),
-  CHECK (follower_id != following_id)
-);
+**Q: What happens if Redis goes down?**
+A: Without persistence (RDB/AOF), all data is lost. With persistence, Redis reloads from disk on restart. For high availability, use Redis Sentinel or Redis Cluster. Services should degrade gracefully — fall back to database queries.
 
-CREATE INDEX idx_followers_follower_id ON followers(follower_id);
-CREATE INDEX idx_followers_following_id ON followers(following_id);
-```
+### Tricky Points
+
+| Pitfall | Explanation |
+|---------|-------------|
+| **Cache stampede** | When a cached key expires and multiple requests simultaneously hit the DB. Fix: mutex locks, early recomputation, or probabilistic expiry. |
+| **Key eviction** | When `maxmemory` is reached, Redis evicts by policy (LRU, LFU, TTL, random). Ensure your eviction policy matches the use case. |
+| **Redis is single-threaded** | One slow command (KEYS, SMEMBERS on huge set) blocks all other requests. Never use KEYS in production — use SCAN. |
+| **Data structure choice** | Wrong structure leads to complex code and poor performance. Use the right structure: Sets for uniqueness, Sorted Sets for ranking, Lists for queues, Hashes for objects. |
 
 ---
 
-### analytics table
-```sql
-CREATE TABLE analytics (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES users(id) ON DELETE SET NULL,
-  post_id UUID REFERENCES posts(id) ON DELETE SET NULL,
-  event_type VARCHAR(100) NOT NULL,
-  event_data JSONB,
-  ip_address INET,
-  user_agent TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+## Elasticsearch — Interview Questions
 
-CREATE INDEX idx_analytics_user_id ON analytics(user_id);
-CREATE INDEX idx_analytics_post_id ON analytics(post_id);
-CREATE INDEX idx_analytics_event_type ON analytics(event_type);
-CREATE INDEX idx_analytics_created_at ON analytics(created_at DESC);
-```
+**Q: Why `keyword` + `text` dual mapping on `title`?**
+A: `text` is analyzed (tokenized, lowercased, stemmed) for full-text search. `keyword` is not analyzed — used for exact matches, sorting, aggregations, and filtering. The `fields` parameter allows both on the same field.
 
----
+**Q: Why 3 shards and 1 replica?**
+A: Shards distribute data across nodes. 3 shards allows scaling to 3 nodes (each gets 1 shard). 1 replica provides redundancy. `refresh_interval: 30s` means data is searchable within 30s (vs 1s default — trades freshness for write throughput).
 
-## MongoDB Schemas
+**Q: How do you reindex when the mapping changes?**
+A: Elasticsearch doesn't allow changing field types. Create a new index with the correct mapping, reindex from the old index, then alias-switch. Zero-downtime migration via index aliases.
 
-### users_content collection
-```json
-{
-  "_id": ObjectId,
-  "user_id": "UUID",
-  "content_type": "text|image|video|mixed",
-  "raw_content": {},
-  "media_files": [
-    {
-      "file_id": "UUID",
-      "url": "string",
-      "mime_type": "string",
-      "size_bytes": "number",
-      "uploaded_at": "ISODate"
-    }
-  ],
-  "tags": ["tag1", "tag2"],
-  "metadata": {
-    "word_count": "number",
-    "language": "string",
-    "sentiment": "positive|negative|neutral"
-  },
-  "created_at": "ISODate",
-  "updated_at": "ISODate"
-}
-```
+### Tricky Points
 
-**Indexes:**
-```javascript
-db.users_content.createIndex({ user_id: 1, created_at: -1 });
-db.users_content.createIndex({ tags: 1 });
-db.users_content.createIndex({ "metadata.language": 1 });
-```
+| Pitfall | Explanation |
+|---------|-------------|
+| **Mapping explosion** | Dynamic mapping creates unlimited fields. A malicious document with unique field names can crash the cluster. Disable dynamic mapping or set `dynamic: strict`. |
+| **Deep pagination** | `from + size` with large values (>10,000) is expensive. Use `search_after` for deep pagination or `scroll` for bulk export. |
+| **Relevance tuning** | Default BM25 may not match your domain. Tune with `boost`, `function_score`, or `learning_to_rank`. |
+| **Near-real-time nature** | Data is searchable only after `refresh_interval`. For read-after-write consistency, force refresh or use `?refresh=wait_for`. |
 
 ---
 
-### user_sessions collection
-```json
-{
-  "_id": ObjectId,
-  "user_id": "UUID",
-  "session_token": "string",
-  "device_info": {
-    "user_agent": "string",
-    "ip_address": "string",
-    "device_type": "mobile|desktop|tablet"
-  },
-  "last_activity": "ISODate",
-  "expires_at": "ISODate",
-  "is_active": "boolean",
-  "created_at": "ISODate"
-}
-```
+## Backup & Recovery — Interview Questions
 
-**TTL Index:**
-```javascript
-db.user_sessions.createIndex({ expires_at: 1 }, { expireAfterSeconds: 0 });
-db.user_sessions.createIndex({ user_id: 1 });
-db.user_sessions.createIndex({ session_token: 1 });
-```
+**Q: Why `pg_dump` vs file-system backup?**
+A: `pg_dump` is logical — portable across PostgreSQL versions and architectures. File-system backup (`pg_start_backup` + rsync) is faster for large databases but version-specific. Use `pg_dump` for small DBs, physical backup for large (>100GB).
 
----
+**Q: What's the difference between RDB and AOF in Redis?**
+A: RDB is a point-in-time snapshot (compact, fast recovery, may lose data). AOF is an append-only log of every write operation (durable, larger, slower recovery). Use both: RDB for base + AOF for precision.
 
-### notifications collection
-```json
-{
-  "_id": ObjectId,
-  "user_id": "UUID",
-  "type": "like|comment|follow|mention",
-  "actor_id": "UUID",
-  "target_id": "UUID",
-  "message": "string",
-  "is_read": "boolean",
-  "read_at": "ISODate",
-  "created_at": "ISODate"
-}
-```
-
-**Indexes:**
-```javascript
-db.notifications.createIndex({ user_id: 1, is_read: 1, created_at: -1 });
-db.notifications.createIndex({ user_id: 1, created_at: -1 });
-```
-
----
-
-## Redis Schemas
-
-### Key Patterns & TTL
-
-| Pattern | Type | TTL | Purpose |
-| --- | --- | --- | --- |
-| `user:{user_id}` | Hash | 24h | User profile cache |
-| `post:{post_id}` | Hash | 12h | Post data cache |
-| `session:{session_token}` | Hash | 30d | User session |
-| `trending:posts` | Sorted Set | 1h | Top trending posts |
-| `user:{user_id}:feed` | List | 6h | User's feed (paginated) |
-| `post:{post_id}:comments` | List | 4h | Post comments cache |
-| `likes:post:{post_id}` | Set | 2h | Post likes (IDs) |
-| `followers:{user_id}` | Set | 24h | User followers |
-| `rate_limit:{user_id}:{endpoint}` | String | 1m | API rate limit |
-
-### Example Cache Operations
-
-```redis
-# User profile
-HSET user:user_uuid name "John" email "john@example.com" bio "Developer"
-EXPIRE user:user_uuid 86400
-
-# Trending posts (sorted by score)
-ZADD trending:posts 1000 post_id_1 950 post_id_2
-EXPIRE trending:posts 3600
-
-# Session
-HSET session:token_uuid user_id user_uuid created_at 1234567890
-EXPIRE session:token_uuid 2592000
-
-# Feed cache
-RPUSH user:user_uuid:feed post_id_1 post_id_2 post_id_3
-EXPIRE user:user_uuid:feed 21600
-```
-
----
-
-## Elasticsearch Schemas
-
-### posts index mapping
-```json
-{
-  "mappings": {
-    "properties": {
-      "id": { "type": "keyword" },
-      "user_id": { "type": "keyword" },
-      "title": {
-        "type": "text",
-        "analyzer": "standard",
-        "fields": {
-          "keyword": { "type": "keyword" }
-        }
-      },
-      "content": { "type": "text" },
-      "summary": { "type": "text" },
-      "tags": { "type": "keyword" },
-      "status": { "type": "keyword" },
-      "view_count": { "type": "integer" },
-      "like_count": { "type": "integer" },
-      "is_featured": { "type": "boolean" },
-      "published_at": { "type": "date" },
-      "created_at": { "type": "date" }
-    }
-  },
-  "settings": {
-    "number_of_shards": 3,
-    "number_of_replicas": 1,
-    "refresh_interval": "30s"
-  }
-}
-```
-
-### users index mapping
-```json
-{
-  "mappings": {
-    "properties": {
-      "id": { "type": "keyword" },
-      "username": { "type": "keyword" },
-      "email": { "type": "keyword" },
-      "first_name": { "type": "text" },
-      "last_name": { "type": "text" },
-      "bio": { "type": "text" },
-      "is_active": { "type": "boolean" },
-      "created_at": { "type": "date" }
-    }
-  }
-}
-```
-
----
-
-## Database Connections
-
-### Environment Variables
-```env
-# PostgreSQL
-DATABASE_URL=postgresql://user:password@localhost:5432/persona_db
-DB_POOL_SIZE=20
-
-# MongoDB
-MONGODB_URI=mongodb://user:password@localhost:27017/persona
-MONGODB_POOL_SIZE=10
-
-# Redis
-REDIS_URL=redis://localhost:6379/0
-REDIS_CLUSTER=false
-
-# Elasticsearch
-ELASTICSEARCH_URL=http://localhost:9200
-ELASTICSEARCH_USERNAME=elastic
-ELASTICSEARCH_PASSWORD=changeme
-```
-
----
-
-## Migration Commands
-
-### PostgreSQL (Alembic - Python)
-```bash
-# Create migration
-alembic revision --autogenerate -m "Add users table"
-
-# Apply migrations
-alembic upgrade head
-
-# Rollback
-alembic downgrade -1
-
-# Show current version
-alembic current
-```
-
-### PostgreSQL (Flyway - Java)
-```bash
-# Validate
-mvn flyway:validate
-
-# Migrate
-mvn flyway:migrate
-
-# Info
-mvn flyway:info
-
-# Clean (CAUTION)
-mvn flyway:clean
-```
-
-### MongoDB
-```bash
-# No migrations needed - schema-less
-# Apply changes via application code or manual scripts
-# Use MongoDB Atlas for cloud deployments
-```
-
-### Redis
-```bash
-# No migrations - ephemeral data
-# Use Redis modules/scripts as needed
-redis-cli < /path/to/setup.redis
-```
-
-### Elasticsearch
-```bash
-# Create index with mapping
-curl -X PUT "localhost:9200/posts" -H 'Content-Type: application/json' -d @mapping.json
-
-# Update mapping (limited)
-curl -X PUT "localhost:9200/posts/_mapping" -H 'Content-Type: application/json' -d '...'
-
-# Delete index
-curl -X DELETE "localhost:9200/posts"
-```
-
----
-
-## Backup & Recovery
-
-### PostgreSQL
-```bash
-# Backup
-pg_dump -U user -h localhost persona_db > backup.sql
-
-# Restore
-psql -U user -h localhost persona_db < backup.sql
-```
-
-### MongoDB
-```bash
-# Backup
-mongodump --uri="mongodb://user:password@localhost:27017/persona"
-
-# Restore
-mongorestore dump/
-```
-
-### Redis
-```bash
-# Backup (RDB)
-redis-cli BGSAVE
-
-# Backup (AOF)
-redis-cli BGREWRITEAOF
-```
-
----
-
-## Maintenance
-
-- **PostgreSQL:** Vacuum tables weekly, analyze for query optimization
-- **MongoDB:** Rebuild indexes monthly, monitor collection size
-- **Redis:** Monitor memory usage, set maxmemory policy
-- **Elasticsearch:** Rotate indices daily/weekly, monitor shard allocation
+**Q: How do you test backups?**
+A: Restore to a staging environment periodically. A backup that's never tested is not a backup. Automate restoration testing as part of the deployment pipeline.

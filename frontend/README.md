@@ -321,14 +321,92 @@ Defined in `src/styles.css` — all components consume these via `var(...)`.
 
 ---
 
+## Interview Preparation & Tricky Points
+
+### Core React Concepts
+
+**Q: Why functional components over class components?**
+A: Simpler API (no `this` binding, no lifecycle confusion), hooks enable state in function components, better tree-shaking, and the React team is investing only in functional features (Suspense, Server Components).
+
+**Q: How does React's reconciliation (diffing) work?**
+A: React compares virtual DOM trees element-by-element. Different type → unmount/remount. Same type → update props recursively. Keys optimize list reconciliation — they tell React to match children by identity, not position. Without keys, inserting an item at index 0 causes React to mutate every sibling instead of shifting.
+
+**Q: What is the stale closure problem in hooks?**
+A: When an effect/event handler captures a variable from a render, it captures that render's value, not the latest one. This causes bugs like `setTimeout` reading old state. Fix: use refs for mutable values, or include the variable in the dependency array.
+
+**Q: Explain the `useEffect` cleanup pattern.**
+A: The return function from `useEffect` runs on unmount and before re-running the effect. It prevents memory leaks (interval clearing, subscription removal, AbortController cancellation). In `useFetch`, the `isMounted` flag in the cleanup prevents `setState` after unmount.
+
+**Q: Why does `useState` use a function initializer sometimes?**
+A: `useState(() => expensiveComputation())` runs only on the initial render. Without the function wrapper, `expensiveComputation()` runs every render even though only the first result is used. This is called **lazy initialization**.
+
+### Common Pitfalls / Tricky Points
+
+| Pitfall | Explanation | Fix |
+|---------|-------------|-----|
+| **Infinite re-render loop** | Setting state unconditionally in the component body causes re-render → state set → re-render... | Only set state in event handlers or `useEffect`. |
+| **Missing deps in useEffect** | The linter warns, but developers sometimes suppress it. Missing deps means the effect reads stale values. | Always include all reactive values in deps. Use `useCallback`/`useMemo` for stable references. |
+| **Object/array in useState** | React does shallow comparison. `setState({...prev})` creates a new reference. Mutating the object directly (`state.x = 1`) won't trigger re-render. | Always spread/immutably update state. |
+| **Key = index in lists** | Using array index as key causes bugs when items are reordered, inserted, or deleted. React misidentifies which item is which. | Use a stable, unique ID per item. |
+| **Stale callback in setTimeout** | `useEffect(() => { const t = setTimeout(() => setCount(count + 1), 1000) }, [])` captures `count = 0` forever. | Use functional updater `setCount(c => c + 1)` or add `count` to deps. |
+| **Closure in event handlers** | Same problem — if you read state inside an event handler registered once, it captures the initial value. | Use refs or ensure the handler is recreated with fresh deps. |
+| **Race conditions in fetch** | Two sequential fetches where the second response arrives before the first. The component shows stale data from the second. | Use AbortController or track the latest request ID. |
+| **setState after unmount** | An async fetch resolves after the component unmounted. Calling `setState` logs a warning and can cause memory leaks. | The `isMounted` guard pattern (or AbortController). |
+
+### Hooks Deep Dive
+
+**Q: How does `useFetch` handle race conditions?**
+A: The `isMounted` flag is set to `true` when the effect runs and `false` in the cleanup. When the async fetch resolves, it checks `isMounted` before calling `setState`. If the component unmounted or a new request was triggered (effect re-ran), the stale response is discarded.
+
+**Q: How does `useLocalStorage` handle SSR?**
+A: The lazy initializer `() => storage.get(key, default)` reads from `localStorage`. In SSR (server-side rendering), `localStorage` is undefined. The `storage.get()` function catches the error and returns the default. This is why the try-catch in `storage.js` is essential.
+
+**Q: Why does `useFetch` use `JSON.stringify(options)` in the dependency array?**
+A: Objects created inline (`{ headers: {...} }`) are a new reference every render. Using the object directly in `[url, options]` would trigger the effect on every render. `JSON.stringify` converts it to a string for stable comparison. Trade-off: deeply nested objects can be slow to stringify.
+
+### Component Design
+
+**Q: Why does `Box` have an `as` prop?**
+A: The `as` prop (polymorphic component) allows rendering a `<div>` as a `<section>`, `<main>`, or `<article>` for semantic HTML without changing layout behavior. This is common in design systems (styled-components, MUI).
+
+**Q: Why does `Button` spread `...rest` after the variant/size styles?**
+A: Spreading after computed styles lets the user override any style via `className` or `style` prop. The order of spread precedence: base styles < variant styles < size styles < `...rest` props. This gives the consumer full control.
+
+**Q: Why does `Heading` use dynamic `h${level}` instead of a switch statement?**
+A: Cleaner code, and it naturally handles edge cases — if someone passes `level={0}` or `level={7}`, it renders `<h0>` or `<h7>`, which are technically invalid HTML but won't crash. A real app should clamp `level` to 1-6.
+
+### CSS & Styling
+
+**Q: Why CSS custom properties instead of a preprocessor like Sass?**
+A: CSS variables are native, can be changed at runtime (theming), inherit through the DOM, and don't require a build step. Sass variables are compile-time only. For runtime dark mode switching, CSS variables are the standard approach.
+
+**Q: Why no CSS-in-JS (styled-components, Emotion)?**
+A: This library prioritizes zero-runtime CSS. CSS custom properties + utility classes give similar flexibility without adding bundle size or runtime overhead. For a component library, consumers can adopt any styling approach on top.
+
+### System Design / Architecture
+
+**Q: How would you handle global state management (Redux, Zustand, Context)?**
+A: This library avoids global state — components receive props. For app-level state, add a store (Zustand is lightweight) that the library components don't depend on. Context is fine for low-frequency updates (theme, auth) but causes unnecessary re-renders for high-frequency updates.
+
+**Q: How would you add accessibility (a11y) to these components?**
+A: Each component should get: `role` attributes where needed, `aria-label` for icon-only buttons, `aria-current` for active nav links, `aria-expanded` for collapsible sections, keyboard navigation (`onKeyDown` for Enter/Space), focus management, and `tabIndex` ordering.
+
+**Q: How would you optimize a page with 1000+ items?**
+A: (1) Virtualization (react-window) — only render visible items. (2) Pagination or infinite scroll with a fixed buffer. (3) Memoize item components with `React.memo`. (4) Avoid inline functions in render props. (5) Use `useMemo`/`useCallback` for expensive computations and stable callbacks.
+
+**Q: How would you test these components?**
+A: Unit tests with Vitest + React Testing Library: render component → assert output. Integration: render a page with Layout + Card + Button → simulate click → verify callback. E2E: Playwright or Cypress for full user flows. The stateless design makes testing trivial — no mocking of internal state.
+
+---
+
 ## Testing
 
 | Layer | Approach |
 |-------|----------|
-| UI components | Render with different prop combinations |
-| Services | Pure function input/output tests |
-| Hooks | React Testing Library (`renderHook`) |
-| API calls | Mock `fetch()` or use MSW |
+| UI components | Render with different prop combinations, snapshot or assert DOM output |
+| Services | Pure function input/output tests — no mocking needed |
+| Hooks | React Testing Library (`renderHook`) with controlled re-renders |
+| API calls | Mock `fetch()` or use MSW (Mock Service Worker) for integration tests |
 
 ---
 

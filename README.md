@@ -1,218 +1,49 @@
-# Persona - Multi-Domain, Multi-Service Platform
+# Root README — Interview Prep & Tricky Points
 
-**Persona** is a large-scale, production-ready platform capturing user interests across multiple content types: **videos**, **audios**, **simulations**, **letters**, **posts**, and **Instagram content**.
+> This file augments the project-level README at `/README.md`. Use it alongside the main README for interview preparation.
 
-## 🎯 Vision
+## Microservices Architecture — Interview Questions
 
-Build a comprehensive platform that understands and serves user interests across diverse media and content types, with a scalable, microservices-based architecture supporting multiple programming languages.
+**Q: Why microservices over a monolith?**
+A: Independent scaling, polyglot stacks, isolated failure domains, team autonomy, faster deployments. Trade-offs: network latency, distributed consistency, operational complexity, debug difficulty. For Persona, each service uses the best language for its domain (Rust for compute, Node.js for I/O, Python for ML).
 
-## 📋 What's Included
+**Q: How do services communicate?**
+A: Synchronous via gRPC (internal) + REST (external). Async via Kafka/RabbitMQ. gRPC uses Protocol Buffers for typed, efficient serialization. Kafka enables event-driven patterns — services publish events without knowing who consumes them.
 
-### Internal Services (Phase 1 - In Progress)
-- **User Service** (Python) - User management & authentication
-- **Content Service** (Go) - Posts, letters, content management
-- **Media Service** (Node.js) - Video & audio handling
-- **Analytics Service** (Java) - User behavior tracking
-- **Simulation Service** (Rust) - Heavy computation & simulations
-- **API Gateway** - Request routing & authentication
-- **Databases** - PostgreSQL, Redis, MongoDB, Elasticsearch
-- **Infrastructure** - Docker, Kubernetes, CI/CD ready
+**Q: How do you handle distributed transactions?**
+A: Avoid them. Use the Saga pattern — a sequence of local transactions with compensating actions on failure. For example: create user → send welcome email. If email fails, roll back user creation. Two-phase commit (2PC) is rarely used due to blocking and complexity.
 
-### Frontend (Phase 2 - Coming Later)
-- **Web App** - React dashboard
-- **Mobile App** - React Native for iOS/Android
+**Q: How do you ensure data consistency across services?**
+A: Each service owns its database (database-per-service pattern). Cross-service reads use API calls or a materialized view. For eventual consistency: async events + idempotent handlers. For strong consistency: use a single service or a distributed transaction coordinator (rare).
 
-## 🏗️ Project Structure
+## Common Pitfalls
 
-```
-persona/
-├── backend/services/
-│   ├── user-service-python/           # User management
-│   ├── content-service-go/             # Content management
-│   ├── media-service-nodejs/           # Media handling
-│   ├── analytics-service-java/         # Analytics
-│   └── simulation-service-rust/        # Simulations
-├── backend/shared/                     # Shared utilities & protocols
-├── frontend/
-│   ├── web-react/                      # (Coming soon)
-│   └── mobile-react-native/            # (Coming soon)
-├── infrastructure/
-│   ├── kubernetes/                     # K8s manifests
-│   └── docker/                         # Dockerfiles
-├── databases/
-│   ├── schemas/                        # DB schemas
-│   └── migrations/                     # Migration scripts
-└── docs/                               # Documentation
-```
+| Pitfall | Explanation | Fix |
+|---------|-------------|-----|
+| **Database-per-service complexity** | JOINs across services become API calls, leading to N+1 queries | Aggregation service, CQRS, or shared read-replica |
+| **Network flakiness** | Services assume reliable network; a transient failure cascades | Retries with exponential backoff, circuit breakers, timeouts |
+| **Lack of observability** | Debugging across 5+ services without distributed tracing is impossible | Jaeger/Zipkin traces, structured logging with request IDs |
+| **Wrong service boundaries** | Services split by technical layer (not domain) cause chatty communication | Organize by business domain (DDD bounded contexts) |
+| **Shared libraries** | Updating a shared proto/utils file requires coordinated deploys | Version protos, backward-compatible changes |
+| **Schema drift** | Microservices evolve independently; a producer changes a field consumers expect | Schema registry, contract testing, consumer-driven contracts |
 
-## 🚀 Quick Start
+## System Design Questions
 
-### Prerequisites
-- Docker & Docker Compose
-- Kubernetes (kubectl)
-- Node.js, Python, Go, Java, Rust (for local development)
+**Q: Design the user service for 10M users.**
+A: Stateless API layer behind a load balancer. PostgreSQL with read replicas + connection pooling (PgBouncer). Redis for session cache (30min TTL). Rate limiting per user. CQRS for read/write separation if needed.
 
-### Start All Services
-```bash
-docker-compose up -d
-```
+**Q: How would you handle a traffic spike?**
+A: Horizontal auto-scaling (HPA in K8s), CDN for static content, rate limiting at the gateway, caching (Redis) for hot data, queue-based load leveling (Kafka buffers spikes), and circuit breakers to fail fast.
 
-### Verify Services Running
-```bash
-curl http://localhost:8001/health  # User Service
-curl http://localhost:8002/health  # Content Service
-curl http://localhost:8003/health  # Media Service
-curl http://localhost:8004/health  # Analytics Service
-curl http://localhost:8005/health  # Simulation Service
-```
+**Q: How do you handle blue-green deployments?**
+A: Two identical environments (blue = live, green = new). Switch traffic at the load balancer after health checks pass. Instant rollback by switching back. Requires double the resources briefly.
 
-## 📚 Documentation
+## Key Concepts Cheat Sheet
 
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - System design & service overview
-- **[PROJECT_ROADMAP.md](PROJECT_ROADMAP.md)** - Development phases & timeline
-- **[DOMAINS.md](DOMAINS.md)** - Domain models & data relationships
-- **[DEVELOPMENT_SETUP.md](DEVELOPMENT_SETUP.md)** - Local development guide
-
-## 🔧 Technology Stack
-
-| Component | Technology |
-|-----------|-----------|
-| User Service | Python + FastAPI |
-| Content Service | Go |
-| Media Service | Node.js + Express |
-| Analytics Service | Java + Spring Boot |
-| Simulation Service | Rust |
-| Web Frontend | React (Phase 2) |
-| Mobile Frontend | React Native (Phase 2) |
-| Primary DB | PostgreSQL |
-| Cache | Redis |
-| Document DB | MongoDB |
-| Search | Elasticsearch |
-| Container | Docker |
-| Orchestration | Kubernetes |
-| Message Queue | Kafka/RabbitMQ |
-| API Gateway | Kong/Nginx |
-
-## 📊 User Interest Domains
-
-Persona tracks user interests across:
-1. **Videos** - Watch history, preferences, recommendations
-2. **Audios** - Listening history, playlists, favorites
-3. **Simulations** - Simulation history, results, performance
-4. **Letters** - Writing & reading history, saved letters
-5. **Posts** - Publishing activity, social engagement
-6. **Instagram Content** - Linked accounts, saved posts, engagement
-
-## 🔄 Service Communication
-
-- **Inter-Service**: gRPC + Protocol Buffers
-- **External API**: REST + JSON
-- **Async Events**: Message Queue (Kafka/RabbitMQ)
-- **Real-time**: WebSockets (Phase 2)
-
-## 📈 Deployment Strategy
-
-### Local Development
-```bash
-docker-compose up
-```
-
-### Kubernetes (Production-Ready)
-```bash
-kubectl apply -f infrastructure/kubernetes/
-```
-
-### CI/CD
-- GitHub Actions / GitLab CI
-- Automated testing on each commit
-- Rolling deployments
-- Automatic rollback on failure
-
-## 🎯 Development Phases
-
-### Phase 1: Internal Services (Weeks 1-8)
-- ✅ Project structure
-- ⏳ Service implementation
-- ⏳ Database schemas
-- ⏳ API integration
-- ⏳ Testing & deployment
-
-### Phase 2: Frontend (Weeks 9-14)
-- ⏳ Web React app
-- ⏳ Mobile React Native app
-- ⏳ UI/UX polish
-- ⏳ Production deployment
-
-### Phase 3: Advanced Features (Ongoing)
-- Social interactions
-- Real-time notifications
-- Recommendations engine
-- Advanced analytics
-
-## 🔐 Security Considerations
-
-- JWT-based authentication
-- Service-to-service authentication (mTLS)
-- Encrypted database connections
-- Rate limiting & DDoS protection
-- Input validation & sanitization
-- Regular security audits
-
-## 📊 Monitoring & Observability
-
-- **Logging**: Centralized logging (ELK/Loki)
-- **Metrics**: Prometheus + Grafana
-- **Tracing**: Jaeger/Zipkin
-- **Alerts**: PagerDuty/Slack integration
-- **Dashboards**: Real-time health monitoring
-
-## 🛠️ Contributing
-
-### Setup for Development
-```bash
-git clone <repo>
-cd persona
-# See DEVELOPMENT_SETUP.md for full instructions
-```
-
-### Running Tests
-```bash
-# Each service has its own test suite
-cd backend/services/<service-name>
-# Run test command (varies by language)
-```
-
-### Code Standards
-- Follow language-specific conventions
-- 80% test coverage minimum
-- Code review required before merge
-- Automated linting & formatting
-
-## 📞 Support & Questions
-
-- Check [DEVELOPMENT_SETUP.md](DEVELOPMENT_SETUP.md) for common issues
-- Review service-specific READMEs in each `backend/services/` folder
-- Check API documentation in `docs/`
-
-## 📄 License
-
-MIT License - See LICENSE file for details
-
----
-
-## 🌟 Key Features
-
-✨ **Microservices Architecture** - Independent, scalable services
-🔄 **Polyglot Stack** - Best language for each domain
-🚀 **Cloud-Ready** - Docker & Kubernetes native
-📦 **Modular** - Easy to add new services
-🧪 **Test-Driven** - Comprehensive testing
-📊 **Observable** - Full monitoring & logging
-🔐 **Secure** - Enterprise-grade security
-📈 **Scalable** - Horizontal scaling built-in
-
----
-
-**Status**: 🚧 Phase 1 In Progress - Building Internal Services
-
-**Next**: See [PROJECT_ROADMAP.md](PROJECT_ROADMAP.md) for detailed timeline
+- **Saga Pattern**: Chain of local transactions, each with compensating action on failure
+- **CQRS**: Separate read models from write models for independent scaling
+- **Event Sourcing**: Store events as the source of truth, derive current state by replaying
+- **Idempotency**: Same request processed multiple times produces the same result
+- **Circuit Breaker**: Fail fast when a downstream service is unhealthy
+- **Bulkhead**: Isolate resources per service/tenant to prevent cascading failures
+- **Graceful Degradation**: Return cached/stale data when a dependency fails
