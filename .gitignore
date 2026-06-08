@@ -1,82 +1,68 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-env/
-venv/
-ENV/
-.venv
-
-# IDEs
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.DS_Store
-
-# Node.js
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Java
-target/
-.classpath
-.project
-.settings/
-*.class
-*.jar
-
-# Rust
-target/
-Cargo.lock
-**/*.rs.bk
-
-# Go
-/bin/
-/vendor/
-*.exe
-*.dll
-
-# Databases
-*.db
-*.sqlite
-*.sqlite3
-
-# Environment variables
-.env
-.env.local
-.env.*.local
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Docker
-docker-compose.override.yml
 
 # Build artifacts
-dist/
-build/
-*.egg-info/
-
-# Test coverage
-.coverage
-.pytest_cache/
-htmlcov/
-
+# Byte-compiled / optimized / DLL files
+# Databases
+# Docker
+# Environment variables
+# Go
+# IDEs
+# Java
 # Logs
-logs/
-*.log
-
+# Node.js
+# OS
+# Rust
+# Test coverage
 # Uploads
-uploads/
-
 # temporary
-tmp/
-temp/
+*$py.class
+**/*.rs.bk
+*.class
+*.db
+*.dll
+*.egg-info/
+*.exe
+*.jar
+*.log
+*.py[cod]
+*.so
+*.sqlite
+*.sqlite3
+*.swo
+*.swp
+*~
+.DS_Store
+.Python
+.classpath
+.coverage
+.env
+.env.*.local
+.env.local
+.idea/
+.project
+.pytest_cache/
+.settings/
+.venv
+.venv/
+.vscode/
+/bin/
+/vendor/
+Cargo.lock
+ENV/
+Thumbs.db
+__pycache__/
 ai-ml/
+build/
+dist/
+docker-compose.override.yml
+env/
+htmlcov/
+logs/
+node_modules/
+npm-debug.log*
+target/
+temp/
+tmp/
+uploads/
+venv/
+yarn-debug.log*
+yarn-error.log*

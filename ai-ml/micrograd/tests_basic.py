@@ -125,7 +125,9 @@ class TestMLP:
         net = MLP(2, [4, 1])
         x = [Value(1.0), Value(-1.0)]
         output = net(x)
-        assert isinstance(output, Value)
+        # MLP always returns a list (one element per output neuron)
+        assert isinstance(output, list) and len(output) == 1
+        assert isinstance(output[0], Value)
 
     def test_mlp_parameters(self):
         net = MLP(2, [4, 1])
@@ -140,8 +142,8 @@ class TestMLP:
         x = [Value(0.5)]
         y_true = Value(1.0)
 
-        # Forward
-        pred = net(x)
+        # Forward (MLP returns list; index [0] to get single output)
+        pred = net(x)[0]
         loss = (pred - y_true) ** 2
 
         # Backward
